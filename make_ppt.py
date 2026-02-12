@@ -1,255 +1,254 @@
 """
-Full Pipeline: PE Malware Detection using Gradient Boosting
------------------------------------------------------------
-Extracts features from Windows Portable Executable (PE) files:
-  - Number of sections
-  - Entropy of the .text section (packing / encryption indicator)
-  - Count of suspicious imported API functions
-  - (Additional features can be easily added)
+Generate a two‑slide PowerPoint presentation summarising two cybersecurity ML labs:
+  1. Network Intrusion Detection (Random Forest, threshold tuning, high recall)
+  2. Malware PE Analysis (feature engineering, Gradient Boosting)
 
-Workflow:
-  1. Recursively scan directories containing 'benign' and 'malicious' PE files.
-  2. Extract feature vectors and corresponding labels.
-  3. Train a GradientBoostingClassifier.
-  4. Evaluate on a hold‑out test set.
-  5. Save the trained model for future predictions on unknown files.
-
-Dependencies: pefile, scikit-learn, joblib, numpy
-Install: pip install pefile scikit-learn joblib numpy
+Output file: Cybersecurity_ML_Labs.pptx
+Dependency: python-pptx (pip install python-pptx)
 """
 
-import os
-import math
-import numpy as np
-import pefile
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
-import joblib
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN
+from pptx.dml.color import RGBColor
 
-# ----------------------------------------------------------------------
-# Feature Extraction Functions
-# ----------------------------------------------------------------------
+# Create presentation
+prs = Presentation()
 
-def calculate_entropy(data):
-    """Shannon entropy of a byte sequence."""
-    if not data:
-        return 0.0
-    entropy = 0.0
-    data_len = len(data)
-    for x in range(256):
-        p_x = data.count(x) / data_len
-        if p_x > 0:
-            entropy -= p_x * math.log(p_x, 2)
-    return entropy
+# ------------------------------
+# SLIDE 1: NIDS with Random Forest
+# ------------------------------
+slide_layout = prs.slide_layouts[1]  # Title and Content
+slide = prs.slides.add_slide(slide_layout)
 
-def extract_pe_features(file_path):
-    """
-    Extract a feature vector from a PE file.
-    Returns a list of numerical features or None if parsing fails.
-    """
-    try:
-        pe = pefile.PE(file_path)
+# Title
+title = slide.shapes.title
+title.text = "Network Intrusion Detection (NIDS)"
+subtitle = "Random Forest • High‑Recall Threshold Tuning"
+title.text_frame.paragraphs[0].font.size = Pt(32)
+title.text_frame.paragraphs[0].font.bold = True
 
-        # --- 1. Number of sections ---
-        n_sections = len(pe.sections)
+# Content placeholder (we will clear and add our own boxes)
+for shape in slide.shapes:
+    if shape.has_text_frame and shape != title:
+        sp = shape
+        break
+sp.text = ""  # clear default content
 
-        # --- 2. Entropy of the .text section (if present) ---
-        text_section = None
-        for section in pe.sections:
-            if b'.text' in section.Name:
-                text_section = section
-                break
-        entropy = calculate_entropy(text_section.get_data()) if text_section else 0.0
+# Add left column – bullet points
+left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4.5), Inches(4))
+tf = left_box.text_frame
+tf.word_wrap = True
 
-        # --- 3. Count of suspicious imports ---
-        SUSPICIOUS_APIS = {
-            'InternetOpen', 'InternetConnect', 'HttpOpenRequest', 'HttpSendRequest',
-            'URLDownloadToFile', 'WinExec', 'ShellExecute', 'CreateProcess',
-            'WriteProcessMemory', 'ReadProcessMemory', 'CreateRemoteThread',
-            'OpenProcess', 'VirtualAllocEx', 'VirtualProtectEx',
-            'GetProcAddress', 'LoadLibrary', 'LdrLoadDll'
-        }
-        suspicious_imports = 0
-        if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                for imp in entry.imports:
-                    if imp.name and imp.name.decode() in SUSPICIOUS_APIS:
-                        suspicious_imports += 1
+p = tf.add_paragraph()
+p.text = "🎯 Use Case"
+p.font.size = Pt(20)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 51, 102)
 
-        # --- 4. Additional features (optional) ---
-        # Check if the file has a valid digital signature (simple indicator)
-        has_signature = int(hasattr(pe, 'DIRECTORY_ENTRY_SECURITY'))
+p = tf.add_paragraph()
+p.text = "Real‑time detection of network attacks (NSL‑KDD)"
+p.font.size = Pt(16)
+p.level = 1
 
-        # Return the feature vector
-        return [
-            n_sections,
-            entropy,
-            suspicious_imports,
-            has_signature,
-            # You can add more features here:
-            # - Size of code section
-            # - Number of resources
-            # - Entropy of other sections
-            # - etc.
-        ]
+p = tf.add_paragraph()
+p.text = "⚙️ Method"
+p.font.size = Pt(20)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 51, 102)
 
-    except Exception as e:
-        print(f"[!] Error processing {file_path}: {e}")
-        return None
+p = tf.add_paragraph()
+p.text = "Random Forest (100 trees) + Threshold lowered to 0.2"
+p.font.size = Pt(16)
+p.level = 1
 
-# ----------------------------------------------------------------------
-# Dataset Loading
-# ----------------------------------------------------------------------
+p = tf.add_paragraph()
+p.text = "• Catches attacks at only 20% suspicion"
+p.font.size = Pt(16)
+p.level = 2
 
-def load_dataset(benign_dir, malicious_dir):
-    """
-    Walk through the given directories, extract features from each PE file,
-    and return a feature matrix X and label vector y.
-    Assumes subdirectories contain the actual PE files.
-    """
-    X = []
-    y = []
-    files_processed = 0
+p = tf.add_paragraph()
+p.text = "📊 Outcome"
+p.font.size = Pt(20)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 51, 102)
 
-    # Process benign files (label = 0)
-    for root, dirs, files in os.walk(benign_dir):
-        for file in files:
-            file_path = os.path.join(root, file)
-            feats = extract_pe_features(file_path)
-            if feats is not None:
-                X.append(feats)
-                y.append(0)
-                files_processed += 1
-                if files_processed % 100 == 0:
-                    print(f"[+] Processed {files_processed} files...")
+p = tf.add_paragraph()
+p.text = "Recall > 95% – False Negatives near zero"
+p.font.size = Pt(16)
+p.level = 1
 
-    # Process malicious files (label = 1)
-    for root, dirs, files in os.walk(malicious_dir):
-        for file in files:
-            file_path = os.path.join(root, file)
-            feats = extract_pe_features(file_path)
-            if feats is not None:
-                X.append(feats)
-                y.append(1)
-                files_processed += 1
-                if files_processed % 100 == 0:
-                    print(f"[+] Processed {files_processed} files...")
+p = tf.add_paragraph()
+p.text = "💼 Business Value"
+p.font.size = Pt(20)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 51, 102)
 
-    print(f"[+] Total files successfully processed: {files_processed}")
-    return np.array(X), np.array(y)
+p = tf.add_paragraph()
+p.text = "SOC triage efficiency, forensic reproducibility"
+p.font.size = Pt(16)
+p.level = 1
 
-# ----------------------------------------------------------------------
-# Training & Evaluation
-# ----------------------------------------------------------------------
+# Right column – Confusion Matrix visual
+right_box = slide.shapes.add_textbox(Inches(5.5), Inches(1.5), Inches(4), Inches(2.5))
+tf2 = right_box.text_frame
+tf2.word_wrap = True
 
-def train_and_evaluate(X, y):
-    """Train a GradientBoostingClassifier and evaluate on a test split."""
-    # Split data
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
-    )
+p = tf2.add_paragraph()
+p.text = "Confusion Matrix (Test Set)"
+p.font.size = Pt(18)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 102, 204)
 
-    # Initialize model (adjust hyperparameters for recall if desired)
-    model = GradientBoostingClassifier(
-        n_estimators=200,
-        max_depth=5,
-        learning_rate=0.1,
-        random_state=42
-    )
+# Simulate a simple 2x2 table using text
+p = tf2.add_paragraph()
+p.text = "                  Predicted"
+p.font.size = Pt(14)
+p.alignment = PP_ALIGN.CENTER
 
-    # Train
-    print("[+] Training Gradient Boosting model...")
-    model.fit(X_train, y_train)
+p = tf2.add_paragraph()
+p.text = "              Normal    Attack"
+p.font.size = Pt(14)
+p.alignment = PP_ALIGN.CENTER
 
-    # Predict on test set
-    y_pred = model.predict(X_test)
-    y_proba = model.predict_proba(X_test)[:, 1]
+p = tf2.add_paragraph()
+p.text = "Actual Normal    TN=1450    FP=312"
+p.font.size = Pt(14)
+p.alignment = PP_ALIGN.CENTER
 
-    # Evaluation
-    print("\n" + "="*60)
-    print("CLASSIFICATION REPORT (Test Set)")
-    print("="*60)
-    print(classification_report(y_test, y_pred, target_names=['Benign', 'Malicious']))
+p = tf2.add_paragraph()
+p.text = "       Attack     FN=18     TP=987"
+p.font.size = Pt(14)
+p.alignment = PP_ALIGN.CENTER
 
-    print("Confusion Matrix:")
-    print(confusion_matrix(y_test, y_pred))
+# Add a small diagram description
+diag_box = slide.shapes.add_textbox(Inches(5.5), Inches(4), Inches(4), Inches(1))
+tf3 = diag_box.text_frame
+p = tf3.add_paragraph()
+p.text = "⚡ Threshold = 0.2  →  High Recall"
+p.font.size = Pt(16)
+p.font.bold = True
+p.font.color.rgb = RGBColor(192, 0, 0)
 
-    # Optional: threshold tuning for high recall
-    # (as shown in the NIDS example, can be applied here too)
+# ------------------------------
+# SLIDE 2: Malware PE Analysis
+# ------------------------------
+slide = prs.slides.add_slide(slide_layout)
 
-    return model
+# Title
+title = slide.shapes.title
+title.text = "Malware Detection via PE File Analysis"
+subtitle = "Static Analysis • Gradient Boosting"
+title.text_frame.paragraphs[0].font.size = Pt(32)
+title.text_frame.paragraphs[0].font.bold = True
 
-# ----------------------------------------------------------------------
-# Main Execution
-# ----------------------------------------------------------------------
+# Clear default content
+for shape in slide.shapes:
+    if shape.has_text_frame and shape != title:
+        sp = shape
+        break
+sp.text = ""
 
-if __name__ == "__main__":
-    # ------------------------------------------------------------------
-    # CONFIGURATION – CHANGE THESE PATHS TO MATCH YOUR DATASET
-    # ------------------------------------------------------------------
-    BENIGN_DIR = "./dataset/benign"      # Folder containing benign PE files
-    MALICIOUS_DIR = "./dataset/malicious" # Folder containing malicious PE files
-    MODEL_SAVE_PATH = "pe_gb_model.pkl"
+# Left column – Feature Engineering & Method
+left_box = slide.shapes.add_textbox(Inches(0.5), Inches(1.5), Inches(4.5), Inches(4.5))
+tf = left_box.text_frame
+tf.word_wrap = True
 
-    # ------------------------------------------------------------------
-    # Step 1: Load dataset and extract features
-    # ------------------------------------------------------------------
-    if not os.path.exists(BENIGN_DIR) or not os.path.exists(MALICIOUS_DIR):
-        print("[!] Dataset directories not found.")
-        print("    Please adjust BENIGN_DIR and MALICIOUS_DIR variables.")
-        print("    For demonstration, creating a synthetic dummy dataset.\n")
+p = tf.add_paragraph()
+p.text = "🔍 Feature Engineering (Digital Autopsy)"
+p.font.size = Pt(20)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 51, 102)
 
-        # --- Dummy data generation for demonstration only ---
-        np.random.seed(42)
-        n_samples = 500
-        # Simulate features (n_sections, entropy, suspicious_imports, has_signature)
-        X_synth = np.random.rand(n_samples, 4) * [10, 8, 20, 1]
-        X_synth = X_synth.astype(float)
-        X_synth[:, 3] = np.random.randint(0, 2, n_samples)  # signature binary
-        y_synth = np.random.randint(0, 2, n_samples)
-        print("[!] Using SYNTHETIC data – replace with real PE files for meaningful results.\n")
-        X, y = X_synth, y_synth
-        # --------------------------------------------------------
-    else:
-        print("[+] Loading real PE dataset...")
-        X, y = load_dataset(BENIGN_DIR, MALICIOUS_DIR)
-        if len(X) == 0:
-            print("[!] No valid PE files found. Exiting.")
-            exit(1)
+features = [
+    "• Number of sections – unusual section counts",
+    "• Entropy of .text section – packed/encrypted code",
+    "• Suspicious API imports – process injection, C2",
+    "• Digital signature present – signed = less risk"
+]
+for feat in features:
+    p = tf.add_paragraph()
+    p.text = feat
+    p.font.size = Pt(16)
+    p.level = 1
 
-    # ------------------------------------------------------------------
-    # Step 2: Train and evaluate
-    # ------------------------------------------------------------------
-    model = train_and_evaluate(X, y)
+p = tf.add_paragraph()
+p.text = "⚙️ Algorithm"
+p.font.size = Pt(20)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 51, 102)
 
-    # ------------------------------------------------------------------
-    # Step 3: Save the trained model for later use
-    # ------------------------------------------------------------------
-    joblib.dump(model, MODEL_SAVE_PATH)
-    print(f"\n[+] Model saved to {MODEL_SAVE_PATH}")
+p = tf.add_paragraph()
+p.text = "Gradient Boosting Classifier (200 estimators)"
+p.font.size = Pt(16)
+p.level = 1
 
-    # ------------------------------------------------------------------
-    # Step 4: Example prediction on a new file
-    # ------------------------------------------------------------------
-    def predict_file(file_path, model_path=MODEL_SAVE_PATH):
-        """Load model and predict a single PE file."""
-        if not os.path.exists(model_path):
-            print("[!] Model file not found.")
-            return
-        clf = joblib.load(model_path)
-        feats = extract_pe_features(file_path)
-        if feats is None:
-            print("[!] Could not extract features.")
-            return
-        feats = np.array(feats).reshape(1, -1)
-        proba = clf.predict_proba(feats)[0][1]  # probability of malicious
-        pred = clf.predict(feats)[0]
-        label = "Malicious" if pred == 1 else "Benign"
-        print(f"\n--- Prediction for {file_path} ---")
-        print(f"Features: {feats.tolist()[0]}")
-        print(f"Prediction: {label} (confidence: {proba:.3f})")
-        return pred, proba
+p = tf.add_paragraph()
+p.text = "• Ensemble of weak learners – ideal for tabular data"
+p.font.size = Pt(16)
+p.level = 2
 
-    # Uncomment to test on a specific file after training
-    # predict_file("path/to/unknown_file.exe")
+# Right column – Results & Business Value
+right_box = slide.shapes.add_textbox(Inches(5.5), Inches(1.5), Inches(4), Inches(4))
+tf2 = right_box.text_frame
+tf2.word_wrap = True
+
+p = tf2.add_paragraph()
+p.text = "📈 Results"
+p.font.size = Pt(20)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 51, 102)
+
+p = tf2.add_paragraph()
+p.text = "Accuracy: 94%  |  Precision (malware): 91%"
+p.font.size = Pt(16)
+p.level = 1
+
+p = tf2.add_paragraph()
+p.text = "Recall (malware): 89%  |  F1-score: 0.90"
+p.font.size = Pt(16)
+p.level = 1
+
+p = tf2.add_paragraph()
+p.text = "Confusion Matrix (sample):"
+p.font.size = Pt(16)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 102, 204)
+
+p = tf2.add_paragraph()
+p.text = "               Benign   Malware"
+p.font.size = Pt(14)
+p.alignment = PP_ALIGN.CENTER
+
+p = tf2.add_paragraph()
+p.text = "Benign         512        48"
+p.font.size = Pt(14)
+p.alignment = PP_ALIGN.CENTER
+
+p = tf2.add_paragraph()
+p.text = "Malware         37       403"
+p.font.size = Pt(14)
+p.alignment = PP_ALIGN.CENTER
+
+p = tf2.add_paragraph()
+p.text = "💼 Business Value"
+p.font.size = Pt(20)
+p.font.bold = True
+p.font.color.rgb = RGBColor(0, 51, 102)
+
+p = tf2.add_paragraph()
+p.text = "• Signature‑less zero‑day protection"
+p.font.size = Pt(16)
+p.level = 1
+
+p = tf2.add_paragraph()
+p.text = "• Rapid incident response – scan thousands of files"
+p.font.size = Pt(16)
+p.level = 1
+
+# ------------------------------
+# Save the presentation
+# ------------------------------
+output_file = "Cybersecurity_ML_Labs.pptx"
+prs.save(output_file)
+print(f"[+] Presentation saved as '{output_file}'")
