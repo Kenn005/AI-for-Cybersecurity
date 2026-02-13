@@ -1,94 +1,85 @@
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
-columns = [
 
+# -------------------------------
+# Column names for NSL-KDD
+# -------------------------------
+columns = [
     'duration','protocol_type','service','flag','src_bytes','dst_bytes',
-    
     'land','wrong_fragment','urgent','hot','num_failed_logins','logged_in',
-        
     'num_compromised','root_shell','su_attempted','num_root',
-            
     'num_file_creations','num_shells','num_access_files','num_outbound_cmds',
-                
     'is_host_login','is_guest_login','count','srv_count','serror_rate',
-                    
     'srv_serror_rate','rerror_rate','srv_rerror_rate','same_srv_rate',
-                        
     'diff_srv_rate','srv_diff_host_rate','dst_host_count',
-                            
     'dst_host_srv_count','dst_host_same_srv_rate',
-                                
     'dst_host_diff_srv_rate','dst_host_same_src_port_rate',
-                                    
     'dst_host_srv_diff_host_rate','dst_host_serror_rate',
-                                        
     'dst_host_srv_serror_rate','dst_host_rerror_rate',
-                                            
     'dst_host_srv_rerror_rate','class'
-                                                
 ]
 
+# -------------------------------
+# Load dataset
+# -------------------------------
+df = pd.read_csv('nsl_kdd_train.csv', names=columns)
 
-
-
-
-#Load NSL-KDD dataset
-#Note:This dataset is a standard benchmark for testing IDS
-
-df = pd.read_csv('nsl_kdd_train.csv',names=columns)
 print("Dataset loaded successfully")
-print("Shape:",df.shape)
-#----STEP 1: Data integrity Check---
-#In Security, missing logs = blind spots. We must check for null values
-print("\n===Missing values check===")
-print(df.isnull().sum())#If we see nulls in 'src-bytes',the logging sensors might be broken
-print("\n===Basic Statical Summary===")
+print("Shape:", df.shape)
+
+# -------------------------------
+# STEP 1: Data Integrity Check
+# -------------------------------
+print("\n=== Missing Values Check ===")
+print(df.isnull().sum())
+
+print("\n=== Basic Statistical Summary ===")
 print(df.describe())
 
-#----STEP 2: 'The Accuracy Trap' Check (imbalance)---
-#We visualize how many 'Normal' vs 'Attack' smaples exist.
-plt.figure(figsize=(8,5))
-sns.countplot(x='class',data=df)
+# -------------------------------
+# STEP 2: Class Imbalance Analysis
+# -------------------------------
 
-#0=Normal, 1=Attack
-# Convert to binary: Normal vs Attack
-df['binary_class'] = df['class'].apply(lambda x: 'Normal' if x == 0 else 'Attack')
-sns.countplot(x='binary_class', data=df)
+# Convert to binary label
+# normal = 0, attack = 1
+df['binary_label'] = df['class'].apply(lambda x: 0 if x == 'normal' else 1)
+
+print("\nBinary Label Distribution:")
+print(df['binary_label'].value_counts())
+
+plt.figure(figsize=(6,4))
+sns.countplot(x='binary_label', data=df)
 plt.title('Normal vs Attack Traffic Distribution')
-plt.ylabel('Number of Network Connections')
+plt.xlabel('Traffic Type (0 = Normal, 1 = Attack)')
+plt.ylabel('Number of Connections')
 plt.show()
 
-#NOTE:If 'Attack' is a tiny silver,we must techniques like SMOTE
-#or focus on 'Recall' rather than 'Accuracy'
-#----STEP: Feature Correlation (The "Smoking Gun")----
-#We want to see which network behaviours are linked to attacks.
-#We pick a subset of numeerical features to avoid overwhelming heatmap.
-df['binary_label'] = df['label'].apply(lambda x: 1 if x != 0 else 0)
+# -------------------------------
+# STEP 3: Correlation Analysis
+# -------------------------------
+security_features = [
+    'duration',
+    'src_bytes',
+    'dst_bytes',
+    'wrong_fragment',
+    'binary_label'
+]
 
-features = ['duration', 'src_bytes', 'dst_bytes', 'wrong_fragment', 'binary_label']
-corr = df[features].corr()
+df[security_features] = df[security_features].apply(
+    pd.to_numeric, errors='coerce'
+)
 
-sns.heatmap(corr, annot=True, fmt=".2f")
+correlation = df[security_features].corr()
+
+plt.figure(figsize=(8,6))
+sns.heatmap(correlation, annot=True, fmt=".2f", cmap='coolwarm')
 plt.title('Correlation with Binary Attack Label')
-plt.show()
-
-
-
-
-security_features=['duration','src_bytes','dst_bytes','wrong_fragment','label']
-df[security_features]= df[security_features].apply(pd.to_numeric,errors='coerce')
-correlation=df[security_features].dropna().corr()
-plt.figure(figsize=(10,8))
-sns.heatmap(correlation,annot=True,cmap='coolwarm',fmt=".2f",linewidths=0.5)
-plt.title('Correlation Matrix:Indentifying Attack Indicators')
 plt.tight_layout()
 plt.show()
 
+# -------------------------------
+# Sample Records
+# -------------------------------
 print("\nSample Records:")
-print(df[['protocol_type', 'service','flag','class','label']].head())
-
-#INTERPRETATION: if 'wrong_fragments' has a high correlation with 'label',
-#it means fragmented packets are a strong indicator of a tear drop attack
-
-
+print(df[['protocol_type', 'service', 'flag', 'class', 'binary_label']].head())
