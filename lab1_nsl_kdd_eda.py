@@ -57,7 +57,6 @@ df['binary_class'] = df['class'].apply(lambda x: 'Normal' if x == 0 else 'Attack
 sns.countplot(x='binary_class', data=df)
 plt.title('Normal vs Attack Traffic Distribution')
 plt.ylabel('Number of Network Connections')
-plt.tight_layout()
 plt.show()
 
 #NOTE:If 'Attack' is a tiny silver,we must techniques like SMOTE
