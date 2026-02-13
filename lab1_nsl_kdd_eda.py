@@ -65,7 +65,7 @@ plt.show()
 #We pick a subset of numeerical features to avoid overwhelming heatmap.
 
 #0=Normal, 1=Attack
-df['label']=df['class'].apply(lambda x: 0 if x=='normal' else 1)
+df['label']=df['class'].apply(lambda x: 0 if x=='Normal' else 'Attack')
 print("\nBinary Label Distribution")
 print(df['label'].value_counts())
 
