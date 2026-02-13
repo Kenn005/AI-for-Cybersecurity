@@ -44,8 +44,9 @@ print(df.describe())
 # Convert to binary label
 # normal = 0, attack = 1
 df['binary_label'] = df['class'].apply(
-    lambda x: 0 if str(x).strip().lower() == 'normal' else 1
+    lambda x: 0 if 'normal' in str(x).lower() else 1
 )
+
 
 
 
