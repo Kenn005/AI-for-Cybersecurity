@@ -65,9 +65,13 @@ plt.show()
 #We pick a subset of numeerical features to avoid overwhelming heatmap.
 
 #0=Normal, 1=Attack
-df['label']=df['class'].apply(lambda x: 0 if x=='Normal' else 'Attack')
-print("\nBinary Label Distribution")
-print(df['label'].value_counts())
+# Convert to binary: Normal vs Attack
+df['binary_class'] = df['class'].apply(lambda x: 'Normal' if x == 0 else 'Attack')
+sns.countplot(x='binary_class', data=df)
+plt.title('Normal vs Attack Traffic Distribution')
+plt.ylabel('Number of Network Connections')
+plt.show()
+
 
 security_features=['duration','src_bytes','dst_bytes','wrong_fragment','label']
 df[security_features]= df[security_features].apply(pd.to_numeric,errors='coerce')
