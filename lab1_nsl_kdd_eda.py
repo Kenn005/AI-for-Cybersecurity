@@ -52,8 +52,9 @@ plt.figure(figsize=(6,4))
 sns.countplot(x='binary_label', data=df)
 plt.title('Normal vs Attack Traffic Distribution')
 plt.xlabel('Traffic Type (0 = Normal, 1 = Attack)')
-plt.ylabel('Number of Connections')
+plt.ylabel('Number of Network Connections')
 plt.show()
+
 
 # -------------------------------
 # STEP 3: Correlation Analysis
