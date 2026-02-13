@@ -64,6 +64,14 @@ plt.show()
 #----STEP: Feature Correlation (The "Smoking Gun")----
 #We want to see which network behaviours are linked to attacks.
 #We pick a subset of numeerical features to avoid overwhelming heatmap.
+df['binary_label'] = df['label'].apply(lambda x: 1 if x != 0 else 0)
+
+features = ['duration', 'src_bytes', 'dst_bytes', 'wrong_fragment', 'binary_label']
+corr = df[features].corr()
+
+sns.heatmap(corr, annot=True, fmt=".2f")
+plt.title('Correlation with Binary Attack Label')
+plt.show()
 
 
 
