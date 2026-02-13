@@ -51,10 +51,12 @@ print(df.describe())
 plt.figure(figsize=(8,5))
 sns.countplot(x='class',data=df)
 
-plt.title('Security Threat Distribution: Normal vs Attack')
-plt.xlabel('Traffic type')
-plt.ylabel('Number of network connections')
-plt.xticks(rotation=45)
+#0=Normal, 1=Attack
+# Convert to binary: Normal vs Attack
+df['binary_class'] = df['class'].apply(lambda x: 'Normal' if x == 0 else 'Attack')
+sns.countplot(x='binary_class', data=df)
+plt.title('Normal vs Attack Traffic Distribution')
+plt.ylabel('Number of Network Connections')
 plt.tight_layout()
 plt.show()
 
@@ -64,13 +66,7 @@ plt.show()
 #We want to see which network behaviours are linked to attacks.
 #We pick a subset of numeerical features to avoid overwhelming heatmap.
 
-#0=Normal, 1=Attack
-# Convert to binary: Normal vs Attack
-df['binary_class'] = df['class'].apply(lambda x: 'Normal' if x == 0 else 'Attack')
-sns.countplot(x='binary_class', data=df)
-plt.title('Normal vs Attack Traffic Distribution')
-plt.ylabel('Number of Network Connections')
-plt.show()
+
 
 
 security_features=['duration','src_bytes','dst_bytes','wrong_fragment','label']
