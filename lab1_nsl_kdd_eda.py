@@ -70,15 +70,10 @@ security_features = [
     'duration',
     'src_bytes',
     'dst_bytes',
-    'count',
-    'srv_count',
-    'serror_rate',
-    'srv_serror_rate',
-    'logged_in',
-    'same_srv_rate',
-    'dst_host_srv_count',
+    'wrong_fragment',
     'binary_label'
 ]
+
 
 
 # Convert to numeric
