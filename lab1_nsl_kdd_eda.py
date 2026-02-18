@@ -70,9 +70,16 @@ security_features = [
     'duration',
     'src_bytes',
     'dst_bytes',
-    'wrong_fragment',
+    'count',
+    'srv_count',
+    'serror_rate',
+    'srv_serror_rate',
+    'logged_in',
+    'same_srv_rate',
+    'dst_host_srv_count',
     'binary_label'
 ]
+
 
 # Convert to numeric
 df[security_features] = df[security_features].apply(pd.to_numeric, errors='coerce')
