@@ -31,6 +31,9 @@ print("Shape:", df.shape)
 # -------------------------------
 # STEP 1: Data Integrity Check
 # -------------------------------
+sns.heatmap(df.isnull(), cbar=False)
+plt.title("Missing Data Visualisation")
+plt.show()
 print("\n=== Missing Values Check ===")
 print(df.isnull().sum())
 
