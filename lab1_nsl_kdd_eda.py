@@ -63,27 +63,33 @@ plt.show()
 
 
 # -------------------------------
-# STEP 3: Correlation Analysis
+# STEP 3: Improved Correlation Analysis
 # -------------------------------
+
 security_features = [
     'duration',
     'src_bytes',
     'dst_bytes',
     'wrong_fragment',
+    'count',
+    'srv_count',
+    'serror_rate',
+    'logged_in',
     'binary_label'
 ]
 
-df[security_features] = df[security_features].apply(
-    pd.to_numeric, errors='coerce'
-)
+# Convert to numeric
+df[security_features] = df[security_features].apply(pd.to_numeric, errors='coerce')
 
+# Compute correlation with target
 correlation = df[security_features].corr()
 
-plt.figure(figsize=(8,6))
+plt.figure(figsize=(10,8))
 sns.heatmap(correlation, annot=True, fmt=".2f", cmap='coolwarm')
-plt.title('Correlation with Binary Attack Label')
+plt.title('Improved Correlation with Binary Attack Label')
 plt.tight_layout()
 plt.show()
+
 
 # -------------------------------
 # Sample Records
