@@ -89,7 +89,7 @@ correlation = df[security_features].corr()
 
 plt.figure(figsize=(10,8))
 sns.heatmap(correlation, annot=True, fmt=".2f", cmap='coolwarm')
-plt.title('Improved Correlation with Binary Attack Label')
+plt.title('Correlation with Binary Attack Label')
 plt.tight_layout()
 plt.show()
 
