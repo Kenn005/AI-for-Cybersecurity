@@ -71,10 +71,6 @@ security_features = [
     'src_bytes',
     'dst_bytes',
     'wrong_fragment',
-    'count',
-    'srv_count',
-    'serror_rate',
-    'logged_in',
     'binary_label'
 ]
 
