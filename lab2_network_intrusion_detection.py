@@ -17,7 +17,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_predict, train_test_split
 from sklearn.metrics import precision_recall_curve, classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
+from xgboost import XGBClassifier
 import warnings
+import matplotlib.pyplot as plt
 warnings.filterwarnings('ignore')
 
 # -----------------------------
@@ -78,17 +80,46 @@ X_test  = pd.get_dummies(X_test_raw,  columns=cat_cols, drop_first=False)
 # Align test columns to training columns (fill missing with 0)
 X_test = X_test.reindex(columns=X_train.columns, fill_value=0)
 
+#--------------------------------------
+#TEMP MODEL FOR FEATURE IMPORTANCE
+#-------------------------------------
+temp_model = XGBClassifier(
+        n_estimators=100,
+        max_depth=6,
+        random_state=42,
+        n_jobs=-1,
+        use_label_encoder=False,
+        eval_metric='logloss'
+        )
+temp_model.fit(X_train,y_train)
+importances =pd.Series(temp_model.feature_importances_, index=X_train.columns)
+top_features=importances.sort_values(ascending=False).head(30)
+X_train=X_train[top_features.index]
+X_test=X_test[top_features.index]
+
 print(f"[INFO] Final feature shape: {X_train.shape}")
 
 # -----------------------------
 # 4. RANDOM FOREST WITH CLASS WEIGHT
 # -----------------------------
 # Use 'balanced' to automatically adjust weights inversely proportional to class frequencies
-rf = RandomForestClassifier(
-    n_estimators=100,
-    class_weight='balanced',
+model = XGBClassifier(
+    n_estimators=300,
+    max_depth=6,
+    learning_rate=0.05,
+    scale_pos_weight=2,
+    subsample=0.7,
+    colsample_bytree=0.7,
+    reg_apha=1,
+    reg_lambda=1,
+
+    #min_samples_split=3,
+    #min_samples_leaf=1,
+    #class_weight='balanced_subsample',
     random_state=42,
-    n_jobs=-1
+    n_jobs=-1,
+    use_label_encoder=False,
+    eval_metric='logloss'
 )
 
 # -----------------------------
@@ -96,7 +127,7 @@ rf = RandomForestClassifier(
 # -----------------------------
 print("[INFO] Generating out-of-fold probability estimates (CV=5)...")
 # cross_val_predict with method='predict_proba' gives probabilities for each fold
-y_probs_cv = cross_val_predict(rf, X_train, y_train, cv=5, method='predict_proba')[:, 1]
+y_probs_cv = cross_val_predict(model, X_train, y_train, cv=5, method='predict_proba')[:, 1]
 
 # -----------------------------
 # 6. THRESHOLD TUNING USING PRECISION‑RECALL CURVE
@@ -105,6 +136,8 @@ y_probs_cv = cross_val_predict(rf, X_train, y_train, cv=5, method='predict_proba
 desired_recall = 0.95  # We want to catch at least 95% of attacks
 
 precisions, recalls, thresholds = precision_recall_curve(y_train, y_probs_cv)
+for t, r, p in zip(thresholds[::100], recalls[:-1:100], precisions[:-1:100]):
+    print(f"Threshold={t:.3f} | Recall={r:.3f} | Precision={p:.3f}")
 
 # Find thresholds where recall >= desired_recall (excluding the last element which is 0)
 valid_indices = np.where(recalls[:-1] >= desired_recall)[0]
@@ -115,21 +148,29 @@ else:
     # Among those, choose the threshold that gives the highest precision
     best_threshold_idx = valid_indices[np.argmax(precisions[valid_indices])]
 
-best_threshold = thresholds[best_threshold_idx]
+best_threshold =0.1
 print(f"[INFO] Optimal threshold for recall >= {desired_recall:.0%}: {best_threshold:.3f}")
 print(f"       -> CV Recall: {recalls[best_threshold_idx]:.3f}, Precision: {precisions[best_threshold_idx]:.3f}")
 
 # -----------------------------
 # 7. RETRAIN ON FULL TRAINING DATA
 # -----------------------------
-print("[INFO] Retraining Random Forest on full training set...")
-rf.fit(X_train, y_train)
+#print("[INFO] Retraining Random Forest on full training set...")
+#model.fit(X_train, y_train)
+
+#------------------------------
+#FEATURE SELECTION 
+#-----------------------------
+importances =pd.Series(model.feature_importances_, index=X_train.columns)
+top_features=importances.sort_values(ascending=False).head(30)
+X_train=X_train[top_features.index]
+X_test=X_test[top_features.index]
 
 # -----------------------------
 # 8. EVALUATE ON TEST SET WITH TUNED THRESHOLD
 # -----------------------------
 print("[INFO] Evaluating on test set...")
-y_probs_test = rf.predict_proba(X_test)[:, 1]
+y_probs_test = model.predict_proba(X_test)[:, 1]
 y_pred_test = (y_probs_test >= best_threshold).astype(int)
 
 print("\n" + "="*60)
@@ -156,3 +197,8 @@ print("\n" + "="*60)
 print(" DEFAULT 0.5 THRESHOLD (for comparison) ")
 print("="*60)
 print(classification_report(y_test, y_pred_default, target_names=['Normal', 'Attack']))
+plt.plot(recalls, precisions)
+plt.xlabel("Recall")
+plt.ylabel("Precision")
+plt.title("Precision-Recall Curve")
+plt.show()
